@@ -121,7 +121,7 @@ This project is licensed under the **MIT License**.
 ---
 
 ## 💌 Contact
-👤 **Your Name**  
+👤 **RAJKRIS**  
 📧 rajesh1993krishnan@gmail.com  
 🔗 [GitHub Profile](https://github.com/RAJKRIS)
 

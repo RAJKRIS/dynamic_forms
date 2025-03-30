@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Form Template{% endblock %}
+{% block content %}
+<div class="row">
+    <!-- Left Side: Form Creation -->
+    <div class="col-md-6">
+        <div class="card shadow-sm p-4">
+            <h2 class="mb-3">Create Form Template</h2>
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    {{ form.name.label_tag }}
+                    {{ form.name }}
+                </div>
+
+                <h3>Form Fields</h3>
+                {{ formset.management_form }}
+
+                <div id="form-fields">
+                    {% for field_form in formset %}
+                        <div class="field-form border rounded p-3 mb-2 bg-light">
+                            <div style="display: none;">{{ field_form.name }}</div>
+                            
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <label class="form-label">Label:</label>
+                                    {{ field_form.label }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Field Type:</label>
+                                    {{ field_form.field_type }}
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn btn-danger btn-sm delete-btn" onclick="deleteField(this)">Delete</button>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <button type="button" class="btn btn-primary mt-2" onclick="addField()">Add More Fields</button>
+                <button type="submit" class="btn btn-success mt-2">Save Form</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Right Side: Live Preview -->
+    <div class="col-md-6">
+        <div class="card shadow-sm p-4">
+            <h3>Live Preview</h3>
+            <div id="form-preview" class="border p-3 bg-light"></div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function addField() {
+        var formContainer = document.getElementById('form-fields');
+        var totalForms = document.getElementById('id_fields-TOTAL_FORMS');
+
+        if (!totalForms) {
+            console.error("TOTAL_FORMS is missing!");
+            return;
+        }
+
+        var formNum = parseInt(totalForms.value);
+        var newForm = document.querySelector('.field-form').cloneNode(true);
+
+        // Remove any existing delete button in the cloned field
+        var existingDeleteButton = newForm.querySelector(".delete-btn");
+        if (existingDeleteButton) {
+            existingDeleteButton.remove();
+        }
+
+        // Update formset index
+        newForm.querySelectorAll("[name]").forEach(function (input) {
+            input.name = input.name.replace(/-\d+-/g, `-${formNum}-`);
+            input.id = input.id.replace(/-\d+-/g, `-${formNum}-`);
+        });
+
+        // Set generated name field (but hide it)
+        var nameInput = newForm.querySelector("[name$='-name']");
+        if (nameInput) {
+            nameInput.value = `field_${formNum}`;
+            nameInput.readOnly = true;
+            nameInput.parentElement.style.display = "none"; // Hide the name field
+        }
+
+        // Clear only the label input so user can enter a new label
+        var labelInput = newForm.querySelector("[name$='-label']");
+        if (labelInput) {
+            labelInput.value = "";
+        }
+
+        // Ensure the field type dropdown is visible
+        var fieldTypeInput = newForm.querySelector("[name$='-field_type']");
+        if (fieldTypeInput) {
+            fieldTypeInput.value = "";
+        }
+
+        // Add event listeners to update preview
+        labelInput.addEventListener("input", updatePreview);
+        fieldTypeInput.addEventListener("change", updatePreview);
+
+        // Add a new delete button
+        var deleteBtn = document.createElement("button");
+        deleteBtn.innerText = "Delete";
+        deleteBtn.type = "button";
+        deleteBtn.classList.add("delete-btn");
+        deleteBtn.onclick = function () {
+            deleteField(this);
+        };
+
+        newForm.appendChild(deleteBtn);
+        formContainer.appendChild(newForm);
+        totalForms.value = formNum + 1;
+
+        updateDeleteButtons();
+        updateIndexes();
+        updatePreview();
+    }
+
+    function deleteField(btn) {
+        var formContainer = document.getElementById('form-fields');
+        var totalForms = document.getElementById('id_fields-TOTAL_FORMS');
+
+        if (formContainer.children.length > 1) {
+            btn.parentElement.remove();
+            totalForms.value = parseInt(totalForms.value) - 1;
+            updateIndexes();
+            updatePreview();
+        } else {
+            alert("At least one field is required.");
+        }
+
+        updateDeleteButtons();
+    }
+
+    function updateIndexes() {
+        var formContainer = document.getElementById('form-fields');
+        var forms = formContainer.getElementsByClassName("field-form");
+
+        for (var i = 0; i < forms.length; i++) {
+            forms[i].querySelectorAll("[name]").forEach(function (input) {
+                input.name = input.name.replace(/-\d+-/g, `-${i}-`);
+                input.id = input.id.replace(/-\d+-/g, `-${i}-`);
+            });
+
+            // Update the name field dynamically (still hidden)
+            var nameInput = forms[i].querySelector("[name$='-name']");
+            if (nameInput) {
+                nameInput.value = `field_${i}`;
+                nameInput.readOnly = true;
+                nameInput.parentElement.style.display = "none";
+            }
+        }
+    }
+
+    function updateDeleteButtons() {
+        var deleteButtons = document.querySelectorAll(".delete-btn");
+        if (deleteButtons.length === 1) {
+            deleteButtons[0].disabled = true;
+        } else {
+            deleteButtons.forEach(btn => btn.disabled = false);
+        }
+    }
+
+    function updatePreview() {
+    var previewContainer = document.getElementById('form-preview');
+    previewContainer.innerHTML = "";
+
+    document.querySelectorAll('.field-form').forEach((form, index) => {
+        var labelInput = form.querySelector("[name$='-label']");
+        var fieldTypeInput = form.querySelector("[name$='-field_type']");
+
+        var formGroup = document.createElement("div");
+        formGroup.classList.add("mb-3");
+
+        var label = document.createElement("label");
+        label.classList.add("form-label", "fw-bold"); // Bootstrap styling
+        label.innerText = labelInput.value || `Field ${index + 1}`;
+
+        var input;
+        if (fieldTypeInput.value === "text" || fieldTypeInput.value === "email" || fieldTypeInput.value === "number") {
+            input = document.createElement("input");
+            input.classList.add("form-control"); // Bootstrap class
+            input.type = fieldTypeInput.value;
+        } else if (fieldTypeInput.value === "textarea") {
+            input = document.createElement("textarea");
+            input.classList.add("form-control"); // Bootstrap class
+            input.rows = 3;
+        } else if (fieldTypeInput.value === "select") {
+            input = document.createElement("select");
+            input.classList.add("form-select"); // Bootstrap select styling
+            var option = document.createElement("option");
+            option.innerText = "Select an option";
+            input.appendChild(option);
+        } else if (fieldTypeInput.value === "checkbox") {
+            input = document.createElement("input");
+            input.classList.add("form-check-input"); // Bootstrap checkbox styling
+            input.type = "checkbox";
+        } else if (fieldTypeInput.value === "radio") {
+            input = document.createElement("input");
+            input.classList.add("form-check-input"); // Bootstrap radio button styling
+            input.type = "radio";
+        } else {
+            input = document.createElement("input");
+            input.classList.add("form-control");
+            input.type = "text"; // Default to text input
+        }
+
+        formGroup.appendChild(label);
+        formGroup.appendChild(input);
+        previewContainer.appendChild(formGroup);
+    });
+}
+
+    window.onload = function () {
+        updateDeleteButtons();
+        updatePreview();
+
+        // Attach event listeners to existing fields
+        document.querySelectorAll("[name$='-label'], [name$='-field_type']").forEach(input => {
+            input.addEventListener("input", updatePreview);
+        });
+    };
+</script>
+{% endblock%}
